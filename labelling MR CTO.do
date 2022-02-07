@@ -1,6 +1,19 @@
+********************************************************************************
+* INPUTS
+********************************************************************************
+
 global qx "$ONEDRIVE\P20204b_EUTF_GMB - Documents\03_Questionnaires\03_Endline\Programming\Pre-test tool\Tekki_Fii_PV_Endline_WIP_pt.xlsx" // enter path of SurveyCTO form
 global path "H:\exported\Tekki_Fii_PV_3_pt.dta" // Enter paths to data 
 
+
+*** Survey Sheet
+global qlabel_language "label" // question label column for the required language - Main sheet
+global qname "name" // variable name column
+
+*** Choices Sheet
+global clabel_language "label" // choice label column for the required language - choices sheet
+global cvalue "value" // choice value column
+global list_name "list_name" // list name column
 
 use "$path", clear
 
@@ -18,15 +31,15 @@ To do:
 
 
 ********************************************************************************
-* LABELLING MULTI RESPONSE OPTIONS - TRY AND FORMALISE AS A TEMPLATE / ADO
+* LABELLING MULTI RESPONSE OPTIONS 
 ********************************************************************************
 
 
 preserve
 import excel using "$qx", clear first sheet("survey")   
 keep if strpos(type, "multiple")
-gen list_name = subinstr(type, "select_multiple ", "", 1)
-rename label question_label
+gen $list_name = subinstr(type, "select_multiple ", "", 1)
+rename $qlabel_language question_label
 
 replace question_label = subinstr(question_label, char(34), "", .)
 
@@ -34,16 +47,27 @@ tempfile x
 save `x'
 
 import excel using "$qx", clear first sheet("choices")
-keep list_name value label
+
+keep $list_name $cvalue $clabel_language 
+
+replace $clabel_language = subinstr($clabel_language, char(34), "", .)
 
 
-joinby list_name using `x' 
+joinby $list_name using `x' 
 
 
-keep list_name value label name question_label
+keep $list_name $cvalue $clabel_language $qname question_label
 
-replace value = subinstr(value, "-", "_", 1)
-gen variable_name = name + "_" + value
+capture confirm numeric variable $cvalue
+	if !_rc {
+		tostring $cvalue, gen(${cvalue}_str)
+		drop $cvalue
+		rename ${cvalue}_str $cvalue
+	}
+
+replace $cvalue = subinstr($cvalue, "-", "_", 1)
+
+gen variable_name = $qname + "_" + $cvalue
 levelsof variable_name, l(l_mulvals)
 
 di `"`l_mulvals'"'
