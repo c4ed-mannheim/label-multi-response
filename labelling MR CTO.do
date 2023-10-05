@@ -2,8 +2,11 @@
 * INPUTS
 ********************************************************************************
 
-global qx "$ONEDRIVE\P20204b_EUTF_GMB - Documents\03_Questionnaires\03_Endline\Programming\Pre-test tool\Tekki_Fii_PV_Endline_WIP_pt.xlsx" // enter path of SurveyCTO form
-global path "H:\exported\Tekki_Fii_PV_3_pt.dta" // Enter paths to data 
+*global qx "$ONEDRIVE\P20204b_EUTF_GMB - Documents\03_Questionnaires\03_Endline\Programming\Pre-test tool\Tekki_Fii_PV_Endline_WIP_pt.xlsx" // enter path of SurveyCTO form
+
+global qx "C:\Users\JoshMcCormick\C4ED\P23086_MW_IFC_GAFSP - Working_files\04_Field Work\07_HFCs\04_questionnaire\P23086_Midline_081623.xlsx"
+
+global path "M:\4_data\2_survey\household_survey_cleaned.dta"
 
 
 *** Survey Sheet
@@ -14,8 +17,6 @@ global qname "name" // variable name column
 global clabel_language "label" // choice label column for the required language - choices sheet
 global cvalue "value" // choice value column
 global list_name "list_name" // list name column
-
-use "$path", clear
 
 /*
 This do-file:
@@ -34,21 +35,32 @@ To do:
 * LABELLING MULTI RESPONSE OPTIONS 
 ********************************************************************************
 
+use "$path", clear
 
 preserve
-import excel using "$qx", clear first sheet("survey")   
+import excel using "$qx", clear first sheet("survey")  
 keep if strpos(type, "multiple")
 gen $list_name = subinstr(type, "select_multiple ", "", 1)
 rename $qlabel_language question_label
-
 replace question_label = subinstr(question_label, char(34), "", .)
+replace question_label= subinstr(question_label ," " , "",.) // there was a weird special character in hn13 that strtrim did not remove
+
+
+replace $qname= lower($qname)
+replace $qname= strtrim($qname)
+replace $qname= subinstr($qname ," " , "",.) // there was a weird special character in hn13 that strtrim did not remove
+
+
 
 tempfile x 
 save `x'
 
+
 import excel using "$qx", clear first sheet("choices")
 
 keep $list_name $cvalue $clabel_language 
+
+
 
 replace $clabel_language = subinstr($clabel_language, char(34), "", .)
 
@@ -58,6 +70,7 @@ joinby $list_name using `x'
 
 keep $list_name $cvalue $clabel_language $qname question_label
 
+
 capture confirm numeric variable $cvalue
 	if !_rc {
 		tostring $cvalue, gen(${cvalue}_str)
@@ -65,12 +78,19 @@ capture confirm numeric variable $cvalue
 		rename ${cvalue}_str $cvalue
 	}
 
+
+
+
 replace $cvalue = subinstr($cvalue, "-", "_", 1)
 
+
+
 gen variable_name = $qname + "_" + $cvalue
+
 levelsof variable_name, l(l_mulvals)
 
 di `"`l_mulvals'"'
+
 
 tokenize `"`l_mulvals'"'
 while "`*'" != "" {
@@ -107,7 +127,9 @@ use `begin', clear
 }
 
 restore 
- 
+
+
+
 di `"`l_mulvals'"'
 
 
@@ -139,6 +161,11 @@ while "`*'" != "" {
 			label var `var' "``1'_val'" 
 			}
 	}
+	** ADDED BY MS
+	else {
+		label var `1' "``1'_val'"	
+	}	
+	*** ADDED BY MS
 	}
 	}
 	else {
@@ -153,10 +180,11 @@ while "`*'" != "" {
 			label var `var' "``1'_val'" 
 			}
 	}		
-		
+	
 		
 		
 	}
 
 	macro shift
 }
+
